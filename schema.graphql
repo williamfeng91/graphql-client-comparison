@@ -1,0 +1,45 @@
+type Query {
+  users: [User!]!
+  user(id: ID!): User
+}
+
+type Mutation {
+  assignTask(input: TaskAssignmentInput!): TaskAssignment!
+  createCompletedTask(input: CompletedTaskInput!): CompletedTask!
+  destroyCompletedTask(input: CompletedTaskInput!): [ID!]!
+}
+
+type User {
+  id: ID!
+  name: String!
+  assignedTasks: [TaskAssignment!]!
+}
+
+type TaskAssignment {
+  id: ID!
+  name: String!
+  frequency: Frequency!
+  completedTasks: [CompletedTask!]!
+}
+
+type CompletedTask {
+  id: ID!
+  name: String!
+  timeKey: String!
+}
+
+input TaskAssignmentInput {
+  name: String!
+  frequency: Frequency!
+  userId: ID!
+}
+
+input CompletedTaskInput {
+  taskAssignmentId: ID!
+  timeKey: String!
+}
+
+enum Frequency {
+  DAILY
+  WEEKLY
+}
