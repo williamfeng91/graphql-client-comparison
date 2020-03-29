@@ -1,28 +1,86 @@
+"""An object with an ID"""
+interface Node {
+  """The id of the object."""
+  id: ID!
+}
+
+"""Information about pagination in a connection."""
+type PageInfo {
+  """When paginating forwards, are there more items?"""
+  hasNextPage: Boolean!
+
+  """When paginating backwards, are there more items?"""
+  hasPreviousPage: Boolean!
+
+  """When paginating backwards, the cursor to continue."""
+  startCursor: String
+
+  """When paginating forwards, the cursor to continue."""
+  endCursor: String
+}
+
 type Query {
-  users: [User!]!
-  user(id: ID!): User
+  viewer: Viewer!
+  nodes(
+    ids: [ID!]!
+  ): [Node]!
 }
 
 type Mutation {
-  assignTask(input: TaskAssignmentInput!): TaskAssignment!
-  createCompletedTask(input: CompletedTaskInput!): CompletedTask!
-  destroyCompletedTask(input: CompletedTaskInput!): [ID!]!
+  assignTask(input: TaskAssignmentInput!): AssignTaskPayload!
+  createCompletedTask(input: CompletedTaskInput!): CreateCompletedTaskPayload
+  destroyCompletedTask(input: CompletedTaskInput!): DestroyCompletedTaskPayload!
 }
 
-type User {
+type Viewer {
+  users(after: String, first: Int, before: String, last: Int): UserConnection!
+  user(id: ID!): User
+}
+
+type UserConnection {
+  pageInfo: PageInfo!
+  edges: [UserEdge!]!
+}
+
+type UserEdge {
+  node: User!
+  cursor: String!
+}
+
+type User implements Node {
   id: ID!
   name: String!
-  assignedTasks: [TaskAssignment!]!
+  assignedTasks(after: String, first: Int, before: String, last: Int): TaskAssignmentConnection!
 }
 
-type TaskAssignment {
+type TaskAssignmentConnection {
+  pageInfo: PageInfo!
+  edges: [TaskAssignmentEdge!]!
+}
+
+type TaskAssignmentEdge {
+  node: TaskAssignment!
+  cursor: String!
+}
+
+type TaskAssignment implements Node {
   id: ID!
   name: String!
   frequency: Frequency!
-  completedTasks: [CompletedTask!]!
+  completedTasks(after: String, first: Int, before: String, last: Int): CompletedTaskConnection!
 }
 
-type CompletedTask {
+type CompletedTaskConnection {
+  pageInfo: PageInfo!
+  edges: [CompletedTaskEdge!]!
+}
+
+type CompletedTaskEdge {
+  node: CompletedTask!
+  cursor: String!
+}
+
+type CompletedTask implements Node {
   id: ID!
   name: String!
   timeKey: String!
@@ -34,9 +92,21 @@ input TaskAssignmentInput {
   userId: ID!
 }
 
+type AssignTaskPayload {
+  taskAssignmentEdge: TaskAssignmentEdge!
+}
+
 input CompletedTaskInput {
   taskAssignmentId: ID!
   timeKey: String!
+}
+
+type CreateCompletedTaskPayload {
+  completedTaskEdge: CompletedTaskEdge!
+}
+
+type DestroyCompletedTaskPayload {
+  destroyedCompletedTaskIds: [ID!]!
 }
 
 enum Frequency {

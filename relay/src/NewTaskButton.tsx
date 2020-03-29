@@ -1,14 +1,14 @@
-import { useMutation } from '@apollo/react-hooks';
-import gql from 'graphql-tag';
+// @ts-ignore
+import graphql from 'babel-plugin-relay/macro';
+import { toGlobalId } from 'graphql-relay';
 import React from 'react';
 import Modal from 'react-modal';
 
-import { APP_QUERY } from './app';
-import { ErrorText } from './app-components';
+import useMutation from './useMutation';
 
 Modal.setAppElement('#root');
 
-export const ASSIGN_TASK = gql`
+export const ASSIGN_TASK = graphql`
   mutation NewTaskButtonAssignTaskMutation($input: TaskAssignmentInput!) {
     assignTask(input: $input) {
       taskAssignmentEdge {
@@ -18,16 +18,6 @@ export const ASSIGN_TASK = gql`
           id
           name
           frequency
-          completedTasks(
-            first: 2147483647 # max GraphQLInt
-          ) {
-            edges {
-              node {
-                id
-                timeKey
-              }
-            }
-          }
         }
       }
     }
@@ -47,19 +37,10 @@ export default function NewTaskButton({
     setName(event.currentTarget.value);
   };
 
-  const [createTask, { loading, error }] = useMutation(ASSIGN_TASK, {
-    refetchQueries: [
-      {
-        query: APP_QUERY,
-        variables: {
-          userId: selectedUserId,
-        },
-      },
-    ],
-  });
-  const handleSubmit = async (event: React.FormEvent) => {
+  const [createTask, { loading }] = useMutation(ASSIGN_TASK);
+  const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    const result = await createTask({
+    createTask({
       variables: {
         input: {
           name: name.trim(),
@@ -67,10 +48,21 @@ export default function NewTaskButton({
           userId: selectedUserId,
         },
       },
+      configs: [
+        {
+          type: 'RANGE_ADD',
+          parentID: toGlobalId('User', selectedUserId),
+          connectionInfo: [
+            {
+              key: 'TaskList_assignedTasks',
+              rangeBehavior: 'append',
+            },
+          ],
+          edgeName: 'taskAssignmentEdge',
+        },
+      ],
     });
-    if (!result.errors) {
-      setModalIsOpen(false);
-    }
+    setModalIsOpen(false);
   };
   const validate = () => {
     if (!name) return false;
@@ -88,7 +80,6 @@ export default function NewTaskButton({
           <button type="submit" disabled={loading || !validate()}>
             {loading ? 'Creating...' : 'Create'}
           </button>
-          {error && <ErrorText>{error.message}</ErrorText>}
         </form>
       </Modal>
     </React.Fragment>

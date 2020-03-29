@@ -21,7 +21,7 @@ class CompletedTaskAPI extends DataSource {
       taskAssignmentId,
       timeKey,
     });
-    return newCompletedTask;
+    return newCompletedTask.toJSON();
   }
 
   async destroy({ taskAssignmentId, timeKey }) {

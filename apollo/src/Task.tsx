@@ -1,31 +1,41 @@
 import { useMutation } from '@apollo/react-hooks';
+import { fromGlobalId } from 'graphql-relay';
 import gql from 'graphql-tag';
 import immer from 'immer';
 import React from 'react';
 
-import { GetUser } from './__generated__/GetUser';
+import { appQuery } from './__generated__/appQuery';
 import { TaskAssignment } from './__generated__/TaskAssignment';
-import { GET_USER } from './app';
+import { APP_QUERY } from './app';
 import { Label, Row } from './app-components';
 
 export const TASK_ASSIGNMENT_FRAGMENT = gql`
-  fragment TaskAssignment on TaskAssignment {
+  fragment Task_taskAssignment on TaskAssignment {
     id
     name
   }
 `;
 
 export const CREATE_COMPLETED_TASK = gql`
-  mutation CreateCompletedTask($input: CompletedTaskInput!) {
+  mutation TaskCreateCompletedTaskMutation($input: CompletedTaskInput!) {
     createCompletedTask(input: $input) {
-      id
+      completedTaskEdge {
+        __typename
+        cursor
+        node {
+          id
+          timeKey
+        }
+      }
     }
   }
 `;
 
 export const DESTROY_COMPLETED_TASK = gql`
-  mutation DestroyCompletedTask($input: CompletedTaskInput!) {
-    destroyCompletedTask(input: $input)
+  mutation TaskDestroyCompletedTaskMutation($input: CompletedTaskInput!) {
+    destroyCompletedTask(input: $input) {
+      destroyedCompletedTaskIds
+    }
   }
 `;
 
@@ -42,7 +52,7 @@ export default function Task({
 }) {
   const variables = {
     input: {
-      taskAssignmentId: taskAssignment.id,
+      taskAssignmentId: fromGlobalId(taskAssignment.id).id,
       timeKey: selectedTimeKey,
     },
   };
@@ -50,7 +60,7 @@ export default function Task({
     variables,
     refetchQueries: [
       {
-        query: GET_USER,
+        query: APP_QUERY,
         variables: {
           userId: selectedUserId,
         },
@@ -61,41 +71,41 @@ export default function Task({
     variables,
     update: (
       cache,
-      { data: { destroyCompletedTask: destroyedCompletedTaskIds } },
+      {
+        data: {
+          destroyCompletedTask: { destroyedCompletedTaskIds },
+        },
+      },
     ) => {
-      const data = cache.readQuery<GetUser>({
-        query: GET_USER,
+      const data = cache.readQuery<appQuery>({
+        query: APP_QUERY,
         variables: {
           userId: selectedUserId,
         },
       });
-      if (data && data.user && data.user.assignedTasks) {
-        const task = data.user.assignedTasks.find(
-          ({ id }) => id === taskAssignment.id,
-        );
-        if (task) {
-          const newData = immer(data, (draftData) => {
-            if (draftData.user) {
-              const draftTask = draftData.user.assignedTasks.find(
-                ({ id }) => id === taskAssignment.id,
-              );
-              if (draftTask) {
-                draftTask.completedTasks = draftTask.completedTasks.filter(
-                  (completedTask) =>
-                    !destroyedCompletedTaskIds.includes(completedTask.id),
-                );
-              }
-            }
-          });
-          cache.writeQuery({
-            query: GET_USER,
-            variables: {
-              userId: selectedUserId,
-            },
-            data: newData,
-          });
-        }
+      const taskEdge = data?.viewer.user?.assignedTasks.edges.find(
+        ({ node }) => node.id === taskAssignment.id,
+      );
+      if (!taskEdge) {
+        return;
       }
+      const newData = immer(data, (draftData) => {
+        const draftTaskEdge = draftData?.viewer.user?.assignedTasks.edges.find(
+          ({ node }) => node.id === taskAssignment.id,
+        );
+        if (!draftTaskEdge) return;
+        draftTaskEdge.node.completedTasks.edges = draftTaskEdge.node.completedTasks.edges.filter(
+          (completedTask) =>
+            !destroyedCompletedTaskIds.includes(completedTask.node.id),
+        );
+      });
+      cache.writeQuery({
+        query: APP_QUERY,
+        variables: {
+          userId: selectedUserId,
+        },
+        data: newData,
+      });
     },
   });
   const handleChange = async (event: React.ChangeEvent<HTMLInputElement>) => {

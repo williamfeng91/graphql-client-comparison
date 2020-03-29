@@ -23,7 +23,7 @@ class TaskAssignmentAPI extends DataSource {
       userId,
     });
     newTaskAssignment.completedTasks = [];
-    return newTaskAssignment;
+    return newTaskAssignment.toJSON();
   }
 }
 

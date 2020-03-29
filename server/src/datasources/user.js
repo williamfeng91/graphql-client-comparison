@@ -18,7 +18,7 @@ class UserAPI extends DataSource {
 
   async findAll() {
     const users = await this.store.users.findAll();
-    return users;
+    return users.map((user) => user.toJSON());
   }
 
   async findById(userId) {
@@ -36,7 +36,7 @@ class UserAPI extends DataSource {
         },
       ],
     });
-    return user;
+    return user.toJSON();
   }
 }
 

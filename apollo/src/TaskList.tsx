@@ -1,60 +1,68 @@
-import { ApolloError } from 'apollo-client';
 import gql from 'graphql-tag';
 import React from 'react';
 
-import { TaskAssignments } from './__generated__/TaskAssignments';
+import {
+  appQuery_viewer_user,
+  appQuery_viewer_user_assignedTasks_edges,
+} from './__generated__/appQuery';
 import { TaskListContainer } from './app-components';
-import Error from './components/Error';
-import Loading from './components/Loading';
 import Task, { TASK_ASSIGNMENT_FRAGMENT } from './Task';
 
 export const TASK_ASSIGNMENTS_FRAGMENT = gql`
-  fragment TaskAssignments on TaskAssignment {
-    id
-    completedTasks {
-      id
-      timeKey
+  fragment TaskList_user on User {
+    assignedTasks(
+      first: 2147483647 # max GraphQLInt
+    ) {
+      edges {
+        node {
+          id
+          completedTasks(
+            first: 2147483647 # max GraphQLInt
+          ) {
+            edges {
+              node {
+                id
+                timeKey
+              }
+            }
+          }
+          ...Task_taskAssignment
+        }
+      }
     }
-    ...TaskAssignment
   }
   ${TASK_ASSIGNMENT_FRAGMENT}
 `;
 
 export default function TaskList({
-  error,
-  loading,
   selectedTimeKey,
   selectedUserId,
-  taskAssignments,
+  user,
 }: {
-  error?: ApolloError;
-  loading: boolean;
   selectedTimeKey: string;
   selectedUserId: string;
-  taskAssignments?: TaskAssignments[];
+  user: appQuery_viewer_user;
 }) {
-  if (loading) return <Loading />;
-  if (error) return <Error>{error}</Error>;
-  if (!taskAssignments) return <Error>Not found</Error>;
-
-  const renderTaskAssignment = (taskAssignment: TaskAssignments) => {
-    const done = taskAssignment.completedTasks.some(
-      (completedTask) => completedTask.timeKey === selectedTimeKey,
+  const renderTaskAssignment = (
+    taskAssignment: appQuery_viewer_user_assignedTasks_edges,
+  ) => {
+    const done = taskAssignment.node.completedTasks.edges.some(
+      (completedTask) => completedTask.node.timeKey === selectedTimeKey,
     );
     return (
       <Task
-        key={taskAssignment.id}
+        key={taskAssignment.node.id}
         done={done}
         selectedTimeKey={selectedTimeKey}
         selectedUserId={selectedUserId}
-        taskAssignment={taskAssignment}
+        taskAssignment={taskAssignment.node}
       />
     );
   };
 
   return (
     <TaskListContainer>
-      {taskAssignments.map(renderTaskAssignment)}
+      {user.assignedTasks.edges.map(renderTaskAssignment)}
     </TaskListContainer>
   );
 }
